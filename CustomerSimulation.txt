@@ -1,0 +1,245 @@
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.*;
+
+//Creating a Customer class to store the data in objects from the file.
+class Customer implements Comparable{
+	char custType;
+	int timeStamp;
+	int noOfItems;
+	Customer(char custType, int timeStamp, int noOfItems){
+		this.custType=custType;
+		this.timeStamp=timeStamp;
+		this.noOfItems=noOfItems;
+	}
+	public int getTimeStamp(){              
+		return this.timeStamp;
+	}
+	public char getCustType(){
+		return this.custType;
+	}
+	public int getNoOfItems(){
+		return this.noOfItems;
+	}
+	public String toString()
+	{	
+		return custType+" "+timeStamp+" "+noOfItems;
+	}
+
+        public int compareTo(Object o){
+         
+	Customer c1=(Customer) o ;
+        if(this.timeStamp<c1.timeStamp) return -1;
+	if(this.timeStamp>c1.timeStamp) return 1;
+        if(this.timeStamp==c1.timeStamp) return 0;
+        return 1;
+        }
+	
+}
+public class CustomerSimulation{
+	
+	//Stores the no of registers according to the input.
+	static int noOfReg;                     
+ 
+public static void main(String[] args){
+	String filename=args[0];
+	List<Customer> list=new ArrayList<>();
+	list=getData(filename);	
+        Collections.sort(list);
+        //System.out.println(list);
+	//System.out.println(noOfReg);
+	int t=1;
+
+	//Creating an ArrayList of Registers where each register has its own list.
+	ArrayList<ArrayList<Integer>> allReg=new ArrayList<>(noOfReg);
+	for(int i=0;i<noOfReg;i++){
+		allReg.add(i,new ArrayList<Integer>());
+	}	
+	boolean finish=false;
+	while(finish!=true){
+		//System.out.println("Register:"+allReg);
+		//items at timestamp
+		for(int i=0;i<noOfReg;i++){
+			if(allReg.get(i).size() != 0)
+			{
+				int temp=allReg.get(i).remove(0);					
+				allReg.get(i).add(0, --temp);
+				if(allReg.get(i).get(0) == 0) 
+					allReg.get(i).remove(0);
+			}
+		}
+		
+		allReg=incomingCust(allReg,t,list);
+		
+	t++;	
+	finish=checkAllEmpty(allReg);
+	} 
+	// We start time simulation at t=1, so result will be t-1.
+	System.out.println("Finished at: t="+ (t-1) +" minutes");       
+ }
+ 
+ public static ArrayList<ArrayList<Integer>> incomingCust(ArrayList<ArrayList<Integer>> allReg, int t, List<Customer> list){
+	
+	//HashMap stores the Type and NoOfItems of all the customers coming to the register at time 't'.
+ 	HashMap<Character,ArrayList<Integer>> customers=getCustomers(t, list);
+
+	if(customers.get('A').size() ==0 && customers.get('B').size() ==0)
+		return allReg;
+	//System.out.println(customers);
+	int total=customers.get('A').size()+customers.get('B').size();
+	//For each in the HashMap
+        for(int i=0;i<total;i++){
+        	
+		// Type stores the type of the next customer and respective items store the number of items they have.
+		int itemsA=-1, itemsB=-1;
+		char type='X';
+		
+		//The code below will give us the values of Type and itemsA or itemsB.
+		if(customers.get('A').size() !=0)
+			 itemsA=customers.get('A').get(0);
+		if(customers.get('B').size() !=0)
+			 itemsB=customers.get('B').get(0);
+		if(itemsA !=-1 && itemsB != -1)
+		{
+			type= itemsA <= itemsB ? 'A' : 'B';
+		}
+		else if(itemsA == -1)
+			type='B';
+		else if(itemsB == -1)
+			type='A';
+        	
+		//Before adding a customer we Check if we have any empty registers
+		int temp=getFirstZero(allReg);
+
+		//We found an empty register at register no 'temp'.
+		if(temp!=-1){
+                	if(temp==(noOfReg-1)) {
+				allReg.get(temp).add(customers.get(type).get(0)*2);
+			}
+			else allReg.get(temp).add(customers.get(type).get(0));                        
+        	}        
+		
+		//No empty register
+		else if (temp==-1 && type == 'A'){
+
+			//Get the register with minimum length
+			int addTo=getMinLength(allReg);
+
+                        //Add new customer in that register queue
+			if(addTo==(noOfReg-1)) {
+				allReg.get(addTo).add(customers.get(type).get(0)*2);
+			}
+			else allReg.get(addTo).add(customers.get(type).get(0));						
+		}
+		else if (temp==-1 && type=='B'){
+	        
+       			//Find reg with minimum last item
+		       	int addTo=getMinLastItem(allReg);
+			
+		       // Add new customer it in that register queue, if its the last (training) register then we double the noOfItems
+		       if(addTo==(noOfReg-1)) {
+				allReg.get(addTo).add(customers.get(type).get(0)*2);
+			}
+			else allReg.get(addTo).add(customers.get(type).get(0));	 			
+		}
+		customers.get(type).remove(0);	
+	}	
+	return allReg;
+ }
+
+ //Returns the index of the first register with empty queue.
+ public static int getFirstZero (ArrayList<ArrayList<Integer>> allReg){
+ 	for(int i=0;i<noOfReg;i++)
+	{
+         	if(allReg.get(i).size()==0) return i;
+	}
+ 	return -1;
+ }
+
+ //Returns the index of the Register with minimum lenght
+ public static int getMinLength(ArrayList<ArrayList<Integer>> allReg){
+ 	int minLen=allReg.get(0).size(), minLenIndex=0;
+ 	for(int i=1;i<noOfReg;i++)
+	{
+		if(minLen > allReg.get(i).size()) 
+     		{
+			minLen=allReg.get(i).size();
+			minLenIndex=i;
+		}
+	}
+ return minLenIndex;
+ }
+
+ //Returns the index of Register whose last customer has minimum no of items.
+ public static int getMinLastItem(ArrayList<ArrayList<Integer>> allReg){
+ 	int size=allReg.get(0).size();
+	int minLast=allReg.get(0).get(size-1), minLastIndex=0;
+ 	for(int i=1;i<noOfReg;i++){
+		size=allReg.get(i).size();
+ 		if(i!= noOfReg-1 && minLast > allReg.get(i).get(size-1)) {
+			minLast=allReg.get(i).get(size-1);
+			minLastIndex=i;	       
+   		}
+                if(i==noOfReg-1 && minLast > (allReg.get(i).get(size-1))/2){
+      		minLast=(allReg.get(i).get(size-1))/2;
+			minLastIndex=i;
+               }
+ 	}
+	return minLastIndex;
+ }
+
+ //Checks whether all the registers are empty or not.
+ public static boolean checkAllEmpty(ArrayList<ArrayList<Integer>> reg){
+	
+	for(int i=0;i<noOfReg;i++){
+		if (reg.get(i).isEmpty()==false) return false;
+	}
+ 	return true;
+
+ }
+ 
+ //Returns a HashMap which contains Type and number of items of all the customer coming to the register at time 't' 
+ public static HashMap<Character,ArrayList<Integer>> getCustomers(int timeStamp, List<Customer> list){
+	HashMap<Character,ArrayList<Integer>> customerAtThatMoment= new HashMap<>();
+	customerAtThatMoment.put('A', new ArrayList<Integer>());
+	customerAtThatMoment.put('B', new ArrayList<Integer>());
+	int i=0;
+        while(list.isEmpty() == false && timeStamp==list.get(i).getTimeStamp()){
+		//System.out.println(list);
+		if(list.get(i).getCustType()=='A')
+		{
+			customerAtThatMoment.get('A').add(list.get(i).getNoOfItems());
+		}
+		else
+		{
+			customerAtThatMoment.get('B').add(list.get(i).getNoOfItems());
+		}
+		list.remove(0);		
+	}
+
+	Collections.sort(customerAtThatMoment.get('A'));
+	Collections.sort(customerAtThatMoment.get('B'));
+	return customerAtThatMoment;
+ }
+
+ //Fetching the data from the file and storing it as objects in a list.
+ public static List<Customer> getData(String filename){
+		
+		List<Customer> list=new ArrayList<>();
+		try {
+			String currentLine;
+			BufferedReader br = new BufferedReader(new FileReader(filename));
+			noOfReg=Integer.parseInt(br.readLine());
+			while ((currentLine = br.readLine()) != null) {			
+				String[] sp=currentLine.split(" ");
+				list.add(new Customer(sp[0].charAt(0), Integer.parseInt(sp[1]),Integer.parseInt(sp[2])));			
+		     }
+		br.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} 
+		//System.out.println(list);
+		return list;
+ }
+}
